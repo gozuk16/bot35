@@ -1,0 +1,31 @@
+{
+	"botId": "XXXXXXXXX",
+	"SlackAPIToken": "xxxx-xxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxx",
+	"redmine": {
+		"url": "http://www.example.com/redmine/issues/",
+		"apiToken": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+		"keywords": [
+			{"key": "redmine ([0-9]*)"},
+			{"key": "refs ([0-9]*)"},
+			{"key": "#([0-9].*)"}
+		]
+	},
+	"httpSummary": {
+		"intra": "example.com"
+	},
+	"jira": {
+		"endpoint": "https://user:password@jira.example.com/rest/api/2/issue/",
+		"url": "https://jira.example.com/browse/",
+		"keywords": [
+			{"key": "jira ([a-zA-Z]*-[0-9]*)"},
+			{"key": "#([a-zA-Z].*-[0-9].*)"}
+		]
+	},
+	"bitbucket": {
+		"url": "http://git.example.com/",
+		"keywords": [
+			{"key": "bitbucket"},
+			{"key": "stash"}
+		]
+	}
+}
