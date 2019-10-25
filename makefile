@@ -1,4 +1,6 @@
-build: botsango.go httpclient.go redmine.go jira.go httpSummary.go
-	go build botsango.go httpclient.go redmine.go jira.go httpSummary.go
-run: botsango.go httpclient.go redmine.go jira.go httpSummary.go
-	go run botsango.go httpclient.go redmine.go jira.go httpSummary.go
+NO_PROXY=confluence.in.infocom.co.jp
+
+build: botsango.go httpclient.go redmine.go jira.go httpSummary.go bitbucket.go bitbucket_pr.go confluence.go
+	go build botsango.go httpclient.go redmine.go jira.go httpSummary.go bitbucket.go bitbucket_pr.go confluence.go
+run: botsango.go httpclient.go redmine.go jira.go httpSummary.go bitbucket.go bitbucket_pr.go confluence.go
+	go run botsango.go httpclient.go redmine.go jira.go httpSummary.go bitbucket.go bitbucket_pr.go confluence.go

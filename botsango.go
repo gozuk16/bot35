@@ -35,23 +35,27 @@ type Jira struct {
 }
 
 type Bitbucket struct {
+	Endpoint string
 	Url      string
 	Keywords []Keywords
 }
 
 type Confluence struct {
+	Endpoint string
 	Url      string
 	Keywords []Keywords
 }
 
 type Config struct {
-	BotId         string
-	SlackAPIToken string
-	Redmine       Redmine
-	HttpSummary   HttpSummary
-	Jira          Jira
-	Bitbucket     Bitbucket
-	Confluence    Confluence
+	BotId               string
+	SlackAPIToken       string
+	Redmine             Redmine
+	HttpSummary         HttpSummary
+	Jira                Jira
+	Bitbucket           Bitbucket
+	BitbucketPR         Bitbucket
+	QuestionsUnanswered Confluence
+	QuestionsList       Confluence
 }
 
 var config Config
@@ -69,7 +73,6 @@ func run(api *slack.Client) int {
 `
 	nullpo += "```"
 
-	//botId := "U1Y4HGEJU"
 	botId := config.BotId
 
 	rtm := api.NewRTM()
@@ -95,32 +98,47 @@ func run(api *slack.Client) int {
 
 				user, _ := api.GetUserInfo(ev.User)
 				log.Printf("ID: %s, Fullname: %s, Email: %s\n", user.ID, user.Profile.RealName, user.Profile.Email)
+
+				msgs := []string{}
+
 				if strings.HasPrefix(ev.Text, "こんにちは") {
-					rtm.SendMessage(rtm.NewOutgoingMessage(user.Profile.RealName+"さん、こんにちは(^-^)", ev.Channel))
+					msgs = append(msgs, user.Profile.RealName+"さん、こんにちは(^-^)")
 				}
 				if ev.Text == "ぬるぽ" || ev.Text == "NullPointerException" {
-					rtm.SendMessage(rtm.NewOutgoingMessage(nullpo, ev.Channel))
+					msgs = append(msgs, nullpo)
 				}
 
 				// Redmine
-				for _, k := range config.Redmine.Keywords {
-					r := regexp.MustCompile(k.Key)
-					str := r.FindAllStringSubmatch(ev.Text, -1)
-					if str != nil {
-						log.Printf("str len=%d\n", len(str))
-						var msg string
-						for i, v := range str {
-							log.Printf("str[%d]=%v\n", i, v[0])
-							redmineUrl := config.Redmine.Url + v[1]
-							msg += redmine(redmineUrl) + "\n"
-						}
-						rtm.SendMessage(rtm.NewOutgoingMessage(msg, ev.Channel))
-					}
-
-				}
+				setMessage(ev.Text, config.Redmine.Keywords, config.Redmine.Url, redmine, &msgs)
 
 				// JIRA
-				for _, k := range config.Jira.Keywords {
+				setMessage(ev.Text, config.Jira.Keywords, config.Jira.Endpoint, jira, &msgs)
+
+				// Bitbucket
+				setMessage(ev.Text, config.Bitbucket.Keywords, config.Bitbucket.Endpoint, bitbucket, &msgs)
+
+				// Bitbucket Pull-Request
+				for _, k := range config.BitbucketPR.Keywords {
+					r := regexp.MustCompile(k.Key)
+					str := r.FindAllStringSubmatch(ev.Text, -1)
+					if str != nil {
+						log.Printf("str len=%d\n", len(str))
+						var msg string
+						for i, v := range str {
+							log.Printf("str[%d]0=%v\n", i, v[0])
+							log.Printf("str[%d]1=%v\n", i, v[1])
+							log.Printf("str[%d]2=%v\n", i, v[2])
+							str := strings.Replace(config.BitbucketPR.Endpoint, "{0}", v[1], 1)
+							bitbucketPRApi := strings.Replace(str, "{1}", v[2], 1)
+							msg += pr(bitbucketPRApi) + "\n"
+						}
+						rtm.SendMessage(rtm.NewOutgoingMessage(msg, ev.Channel))
+					}
+				}
+
+				// Questions for Confluence
+				//setMessage(ev.Text, config.QuestionsUnanswered.Keywords, config.QuestionsUnanswered.Endpoint, confluence, &msgs)
+				for _, k := range config.QuestionsUnanswered.Keywords {
 					r := regexp.MustCompile(k.Key)
 					str := r.FindAllStringSubmatch(ev.Text, -1)
 					if str != nil {
@@ -128,15 +146,17 @@ func run(api *slack.Client) int {
 						var msg string
 						for i, v := range str {
 							log.Printf("str[%d]=%v\n", i, v[0])
-							jiraApi := config.Jira.Endpoint + v[1]
-							msg += jira(jiraApi) + "\n"
+							//confluenceApi := config.Confluence.Endpoint + v[1]
+							confluenceApi := config.QuestionsUnanswered.Endpoint
+							msg += confluence(confluenceApi) + "\n"
 						}
 						rtm.SendMessage(rtm.NewOutgoingMessage(msg, ev.Channel))
 					}
-
 				}
+				/*
+				*/
 
-				// HTTP Summary
+				// URL
 				if strings.Contains(ev.Text, "<http://") || strings.Contains(ev.Text, "<https://") {
 					key := "<(https?://.*." + config.HttpSummary.Intra + "/?.*?)>"
 					log.Printf("key=%v\n", key)
@@ -174,11 +194,37 @@ func run(api *slack.Client) int {
 					}
 				}
 
+				for _, m := range msgs {
+					rtm.SendMessage(rtm.NewOutgoingMessage(m, ev.Channel))
+				}
+
 			case *slack.InvalidAuthEvent:
 				log.Print("Invalid credentials")
 				return 1
 
 			}
+		}
+	}
+}
+
+func setMessage(txt string, keywords []Keywords, endpoint string, fn func(string) string, msgs *[]string) {
+	for _, k := range keywords {
+		r := regexp.MustCompile(k.Key)
+		str := r.FindAllStringSubmatch(txt, -1)
+		if str != nil {
+			log.Printf("str len=%d\n", len(str))
+			var msg string
+			for i, v := range str {
+				log.Printf("str[%d]=%v\n", i, v[0])
+				url := ""
+				if len(v) > 1 {
+					url = endpoint + v[1]
+				} else {
+					url = endpoint
+				}
+				msg += fn(url) + "\n"
+			}
+			*msgs = append(*msgs, msg)
 		}
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/httputil"
+	"crypto/tls"
 )
 
 func newRequest(m map[string]string) (*http.Request, error) {
@@ -33,12 +34,28 @@ func newRequest(m map[string]string) (*http.Request, error) {
 func getResponse(m map[string]string) (*http.Response, error) {
 	req, err := newRequest(m)
 
-	resp, err := http.DefaultClient.Do(req)
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{
+		Transport: tr,
+	}
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	} else if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("[%d] Unable to get this url", resp.StatusCode)
 	}
+
+	/*
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return nil, err
+		} else if resp.StatusCode != 200 {
+			return nil, fmt.Errorf("[%d] Unable to get this url", resp.StatusCode)
+		}
+	*/
 
 	return resp, err
 }
