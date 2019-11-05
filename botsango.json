@@ -22,10 +22,34 @@
 		]
 	},
 	"bitbucket": {
-		"url": "http://git.example.com/",
+		"url": "https://git.example.com/",
 		"keywords": [
 			{"key": "bitbucket"},
 			{"key": "stash"}
+		]
+	},
+	"bitbucketPR": {
+        	"endpoint": "https://user:password@git.example.com/rest/api/1.0/projects/{0}/repos/{1}/pull-requests",
+        	"url": "https://git.example.com/",
+	        "keywords": [
+			{"key": "pr ([a-zA-Z0-9].*) ([a-zA-Z0-9].*)"}
+		]
+	},
+	"questionsUnanswered": {
+        	"endpoint": "https://user:password@confluence.example.com/rest/questions/1.0/question?limit=10&filter=unanswered",
+        	"url": "https://confluence.example.com/",
+	        "keywords": [
+			{"key": "q (unanswered)"},
+			{"key": "q (unans)"},
+			{"key": "q (ñ¢âÒìöÇ†ÇÈÅH)"}
+		]
+	},
+	"questionsList": {
+        	"endpoint": "https://user:password@confluence.example.com/rest/questions/1.0/question?limit=10",
+        	"url": "https://confluence.example.com/",
+	        "keywords": [
+			{"key": "questions list"},
+			{"key": "éøñ‚àÍóó"}
 		]
 	}
 }

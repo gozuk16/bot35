@@ -7,7 +7,7 @@ import (
 	"log"
 )
 
-type ConfluenceQuetions []struct {
+type ConfluenceQuestions []struct {
 	ID     int    `json:"id"`
 	Title  string `json:"title"`
 	URL    string `json:"url"`
@@ -42,29 +42,34 @@ type ConfluenceQuetions []struct {
 	IsTrashed bool `json:"isTrashed"`
 }
 
-var confluenceQuetions ConfluenceQuetions
+var confluenceQuestions ConfluenceQuestions
 
-func encodeJson4Confluence(url string) (ConfluenceQuetions, error) {
+func encodeJson4Confluence(url string) (ConfluenceQuestions, error) {
 	m := map[string]string{"url": url}
 	resp, err := getResponse(m)
 	if err != nil {
-		return confluenceQuetions, err
+		log.Fatalf("Error!: %v", err)
+		return confluenceQuestions, err
 	}
 
 	byteArray, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return confluenceQuetions, err
+		log.Fatalf("Error!: %v", err)
+		return confluenceQuestions, err
 	}
 	defer resp.Body.Close()
 
-	if err := json.Unmarshal(byteArray, &confluenceQuetions); err != nil {
+	if err := json.Unmarshal(byteArray, &confluenceQuestions); err != nil {
 		log.Fatalf("Error!: %v", err)
 	}
-	return confluenceQuetions, err
+
+	fmt.Printf("%v\n", byteArray)
+	return confluenceQuestions, err
 }
 
 func confluence(url string) (msg string) {
 	res, _ := encodeJson4Confluence(url)
+	log.Printf("unanswerd=%d\n", len(res))
 	for _, v := range res {
 		fmt.Printf("v.Title: %v\n", v.Title)
 		msg += v.Title + "/"
@@ -75,10 +80,10 @@ func confluence(url string) (msg string) {
 	}
 
 	/*
-	fmt.Println("Project: " + res.Fields.Project.Name)
-	fmt.Println("Title: " + res.Fields.Summary)
-	fmt.Println("Status: " + res.Fields.Status.Name)
-	fmt.Println("Issuetype: " + res.Fields.Issuetype.Name)
+		fmt.Println("Project: " + res.Fields.Project.Name)
+		fmt.Println("Title: " + res.Fields.Summary)
+		fmt.Println("Status: " + res.Fields.Status.Name)
+		fmt.Println("Issuetype: " + res.Fields.Issuetype.Name)
 	*/
 
 	//ticketUrl := config.Confluence.Url + res.Key

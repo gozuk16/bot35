@@ -40,7 +40,7 @@ type Bitbucket struct {
 	Keywords []Keywords
 }
 
-type Confluence struct {
+type Standard struct {
 	Endpoint string
 	Url      string
 	Keywords []Keywords
@@ -51,11 +51,11 @@ type Config struct {
 	SlackAPIToken       string
 	Redmine             Redmine
 	HttpSummary         HttpSummary
-	Jira                Jira
-	Bitbucket           Bitbucket
-	BitbucketPR         Bitbucket
-	QuestionsUnanswered Confluence
-	QuestionsList       Confluence
+	Jira                Standard
+	Bitbucket           Standard
+	BitbucketPR         Standard
+	QuestionsUnanswered Standard
+	QuestionsList       Standard
 }
 
 var config Config
@@ -154,7 +154,7 @@ func run(api *slack.Client) int {
 					}
 				}
 				/*
-				*/
+				 */
 
 				// URL
 				if strings.Contains(ev.Text, "<http://") || strings.Contains(ev.Text, "<https://") {
@@ -173,26 +173,8 @@ func run(api *slack.Client) int {
 					}
 				}
 
-				// おみくじ
-				if strings.HasPrefix(ev.Msg.Text, fmt.Sprintf("<@%s> ", botId)) {
-					m := strings.Split(strings.TrimSpace(ev.Msg.Text), " ")[1:]
-					log.Printf("m: %v\n", m)
-					if len(m) == 0 {
-						log.Printf("invalid message")
-					} else {
-						var fortune []string
-						for i, v := range m[1:] {
-							log.Printf("%v: %v\n", i, v)
-							fortune = append(fortune, v)
-						}
-						shuffle(fortune)
-						log.Printf("shuffle\n")
-						for i, v := range fortune {
-							log.Printf("%v: %v\n", i, v)
-						}
-						rtm.SendMessage(rtm.NewOutgoingMessage("おみくじですね。候補者を入れてください。", ev.Channel))
-					}
-				}
+				// メンション対応
+				responseMention(botId, ev.Text, &msgs)
 
 				for _, m := range msgs {
 					rtm.SendMessage(rtm.NewOutgoingMessage(m, ev.Channel))
@@ -207,13 +189,45 @@ func run(api *slack.Client) int {
 	}
 }
 
+func responseMention(botId string, txt string, msgs *[]string) {
+	log.Printf("botId: %v\n", botId)
+	if strings.HasPrefix(txt, "<@"+botId+">") {
+		m := strings.Split(strings.TrimSpace(txt), " ")[1:]
+		log.Printf("m: %v\n", m)
+		if len(m) == 0 {
+			*msgs = append(*msgs, "呼んだ？")
+		} else if m[0] == "reload" {
+			*msgs = append(*msgs, "りろーどするよ")
+			getConfig()
+		} else if m[0] == "おみくじ" {
+			if len(m) == 1 {
+				*msgs = append(*msgs, "おみくじですね。候補者を入れてください。")
+			} else {
+				var fortune []string
+				//for i, v := range *msgs[1:] {
+				for i, v := range m {
+					log.Printf("%v: %v\n", i, v)
+					fortune = append(fortune, v)
+				}
+				shuffle(fortune)
+				log.Printf("shuffle\n")
+				for i, v := range fortune {
+					log.Printf("%v: %v\n", i, v)
+					*msgs = append(*msgs, v)
+				}
+			}
+		}
+	}
+
+}
+
 func setMessage(txt string, keywords []Keywords, endpoint string, fn func(string) string, msgs *[]string) {
 	for _, k := range keywords {
 		r := regexp.MustCompile(k.Key)
 		str := r.FindAllStringSubmatch(txt, -1)
 		if str != nil {
 			log.Printf("str len=%d\n", len(str))
-			var msg string
+			var m string
 			for i, v := range str {
 				log.Printf("str[%d]=%v\n", i, v[0])
 				url := ""
@@ -222,9 +236,9 @@ func setMessage(txt string, keywords []Keywords, endpoint string, fn func(string
 				} else {
 					url = endpoint
 				}
-				msg += fn(url) + "\n"
+				m += fn(url) + "\n"
 			}
-			*msgs = append(*msgs, msg)
+			*msgs = append(*msgs, m)
 		}
 	}
 }
