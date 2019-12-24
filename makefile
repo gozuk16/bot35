@@ -1,4 +1,4 @@
-NO_PROXY=confluence.in.infocom.co.jp
+NO_PROXY=foo.samples.com
 
 build: botsango.go httpclient.go redmine.go jira.go httpSummary.go bitbucket.go bitbucket_pr.go confluence.go
 	go build botsango.go httpclient.go redmine.go jira.go httpSummary.go bitbucket.go bitbucket_pr.go confluence.go
