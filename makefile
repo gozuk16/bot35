@@ -1,11 +1,13 @@
-build: bot35.go httpclient.go redmine.go jira.go httpSummary.go bitbucket.go bitbucket_pr.go confluence.go
-	go build bot35.go httpclient.go redmine.go jira.go httpSummary.go bitbucket.go bitbucket_pr.go confluence.go
+SRC=bot35.go httpclient.go redmine.go jira.go httpSummary.go bitbucket.go bitbucket_pr.go confluence.go
 
-linux: bot35.go httpclient.go redmine.go jira.go httpSummary.go bitbucket.go bitbucket_pr.go confluence.go
-	GOOS=linux GOARCH=amd64 go build -o linux-amd64/bot35
+build:
+	go build $(SRC)
 
-win: bot35.go httpclient.go redmine.go jira.go httpSummary.go bitbucket.go bitbucket_pr.go confluence.go
-	GOOS=windows GOARCH=amd64 go build -o windows-amd64/bot35.exe
+linux:
+	GOOS=linux GOARCH=amd64 go build -o linux-amd64/bot35 $(SRC)
 
-run: bot35.go httpclient.go redmine.go jira.go httpSummary.go bitbucket.go bitbucket_pr.go confluence.go
-	go run bot35.go httpclient.go redmine.go jira.go httpSummary.go bitbucket.go bitbucket_pr.go confluence.go
+win:
+	GOOS=windows GOARCH=amd64 go build -o windows-amd64/bot35.exe $(SRC)
+
+run:
+	go run $(SRC)
