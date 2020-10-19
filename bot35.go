@@ -31,14 +31,18 @@ type HttpSummary struct {
 type Jira struct {
 	Endpoint string
 	Url      string
+	APIUser  string
+	APIToken string
 	Keywords []Keywords
 }
 
+/*
 type Bitbucket struct {
 	Endpoint string
 	Url      string
 	Keywords []Keywords
 }
+*/
 
 type Standard struct {
 	Endpoint string
@@ -51,7 +55,7 @@ type Config struct {
 	SlackAPIToken       string
 	Redmine             Redmine
 	HttpSummary         HttpSummary
-	Jira                Standard
+	Jira                Jira
 	Bitbucket           Standard
 	BitbucketPR         Standard
 	QuestionsUnanswered Standard
@@ -101,9 +105,10 @@ func run(api *slack.Client) int {
 
 				msgs := []string{}
 
-				if strings.HasPrefix(ev.Text, "こんにちは") {
+				if (ev.Text == "こんにちは" || ev.Text == "hello") {
 					msgs = append(msgs, user.Profile.RealName+"さん、こんにちは(^-^)")
 				}
+
 				if ev.Text == "ぬるぽ" || ev.Text == "NullPointerException" {
 					msgs = append(msgs, nullpo)
 				}
@@ -204,7 +209,6 @@ func responseMention(botId string, txt string, msgs *[]string) {
 				*msgs = append(*msgs, "おみくじですね。候補者を入れてください。")
 			} else {
 				var fortune []string
-				//for i, v := range *msgs[1:] {
 				for i, v := range m {
 					log.Printf("%v: %v\n", i, v)
 					fortune = append(fortune, v)
@@ -245,7 +249,7 @@ func setMessage(txt string, keywords []Keywords, endpoint string, fn func(string
 
 func shuffle(data []string) {
 	n := len(data)
-	log.Printf("n=%v", n)
+	log.Printf("n=%v\n", n)
 	for i := n - 1; i >= 0; i-- {
 		j := rand.Intn(i + 1)
 		log.Printf("j=%v, i+1=%v", j, i+1)

@@ -40,22 +40,17 @@ type RedmineIssue struct {
 			ID   int    `json:"id"`
 			Name string `json:"name"`
 		} `json:"category"`
-		FixedVersion struct {
-			ID   int    `json:"id"`
-			Name string `json:"name"`
-		} `json:"fixed_version"`
-		Subject      string  `json:"subject"`
-		Description  string  `json:"description"`
-		StartDate    string  `json:"start_date"`
-		DoneRatio    int     `json:"done_ratio"`
-		SpentHours   float64 `json:"spent_hours"`
+		Subject      string `json:"subject"`
+		Description  string `json:"description"`
+		DoneRatio    int    `json:"done_ratio"`
 		CustomFields []struct {
 			ID    int    `json:"id"`
 			Name  string `json:"name"`
-			Value string `json:"value,omitempty"`
+			Value string `json:"value"`
 		} `json:"custom_fields"`
 		CreatedOn time.Time `json:"created_on"`
 		UpdatedOn time.Time `json:"updated_on"`
+		ClosedOn  time.Time `json:"closed_on"`
 	} `json:"issue"`
 }
 
