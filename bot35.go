@@ -254,7 +254,7 @@ func shuffle(data []string) {
 }
 
 func getConfig() {
-	configFile := "botsango.json"
+	configFile := "bot35.json"
 	for _, p := range filepath.SplitList(os.Getenv("PATH")) {
 		fmt.Println(p)
 		f := filepath.Join(p, configFile)
