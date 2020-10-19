@@ -41,7 +41,7 @@
 	        "keywords": [
 			{"key": "q (unanswered)"},
 			{"key": "q (unans)"},
-			{"key": "q (���񓚂���H)"}
+			{"key": "q (¢ñ éH)"}
 		]
 	},
 	"questionsList": {
@@ -49,7 +49,7 @@
         	"url": "https://confluence.example.com/",
 	        "keywords": [
 			{"key": "questions list"},
-			{"key": "����ꗗ"}
+			{"key": "¿âê"}
 		]
 	}
 }
