@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"net/url"
 
 	"github.com/nlopes/slack"
 )
@@ -114,7 +115,15 @@ func run(api *slack.Client) int {
 				}
 
 				// Redmine
-				setMessage(ev.Text, config.Redmine.Keywords, config.Redmine.Url, redmine, &msgs)
+				if strings.Contains(ev.Text, config.Redmine.Url) {
+					url, _ := url.Parse(ev.Text)
+					s := strings.Split(url.Path, "/")
+					fmt.Println(s[1] + " : " + s[2])
+					str := "redmine " + s[2]
+					setMessage(str, config.Redmine.Keywords, config.Redmine.Url, redmine, &msgs)
+				} else {
+					setMessage(ev.Text, config.Redmine.Keywords, config.Redmine.Url, redmine, &msgs)
+				}
 
 				// JIRA
 				setMessage(ev.Text, config.Jira.Keywords, config.Jira.Endpoint, jira, &msgs)
@@ -158,11 +167,9 @@ func run(api *slack.Client) int {
 						rtm.SendMessage(rtm.NewOutgoingMessage(msg, ev.Channel))
 					}
 				}
-				/*
-				 */
 
-				// URL
-				if strings.Contains(ev.Text, "<http://") || strings.Contains(ev.Text, "<https://") {
+				// http Summary
+				if (strings.Contains(ev.Text, "<http://") || strings.Contains(ev.Text, "<https://")) && strings.Contains(ev.Text, config.HttpSummary.Intra) {
 					key := "<(https?://.*." + config.HttpSummary.Intra + "/?.*?)>"
 					log.Printf("key=%v\n", key)
 					r := regexp.MustCompile(key)
@@ -188,7 +195,6 @@ func run(api *slack.Client) int {
 			case *slack.InvalidAuthEvent:
 				log.Print("Invalid credentials")
 				return 1
-
 			}
 		}
 	}
