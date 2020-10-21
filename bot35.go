@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"log"
 	"math/rand"
-	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -117,16 +116,19 @@ func run(api *slack.Client) int {
 				// Redmine
 				if strings.Contains(ev.Text, config.Redmine.Url) {
 					log.Println(ev.Text)
-					url, err := url.Parse(ev.Text)
-					if err != nil {
-						log.Println(err)
-						m := strings.Split(ev.Text, "/")
-						log.Println(m[0] + " / " + m[1] + " / " + m[2] + " / " + m[3] + " / " + m[4] + " / " + m[5])
+					var text string
+					r := regexp.MustCompile(config.Redmine.Url + "([0-9]*)")
+					str := r.FindAllStringSubmatch(ev.Text, -1)
+					if str != nil {
+						log.Printf("str len=%d\n", len(str))
+						for i, v := range str {
+							log.Printf("str[%d]0=%v\n", i, v[0])
+							log.Printf("str[%d]1=%v\n", i, v[1])
+							text = "redmine " + v[1]
+							break
+						}
 					}
-					s := strings.Split(url.Path, "/")
-					log.Println(s[1] + " : " + s[2])
-					str := "redmine " + s[2]
-					setMessage(str, config.Redmine.Keywords, config.Redmine.Url, redmine, &msgs)
+					setMessage(text, config.Redmine.Keywords, config.Redmine.Url, redmine, &msgs)
 				} else {
 					setMessage(ev.Text, config.Redmine.Keywords, config.Redmine.Url, redmine, &msgs)
 				}
