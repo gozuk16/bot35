@@ -6,11 +6,11 @@ import (
 	"io/ioutil"
 	"log"
 	"math/rand"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
-	"net/url"
 
 	"github.com/nlopes/slack"
 )
@@ -106,7 +106,7 @@ func run(api *slack.Client) int {
 
 				msgs := []string{}
 
-				if (ev.Text == "こんにちは" || ev.Text == "hello") {
+				if ev.Text == "こんにちは" || ev.Text == "hello" {
 					msgs = append(msgs, user.Profile.RealName+"さん、こんにちは(^-^)")
 				}
 
@@ -116,9 +116,15 @@ func run(api *slack.Client) int {
 
 				// Redmine
 				if strings.Contains(ev.Text, config.Redmine.Url) {
-					url, _ := url.Parse(ev.Text)
+					log.Println(ev.Text)
+					url, err := url.Parse(ev.Text)
+					if err != nil {
+						log.Println(err)
+						m := strings.Split(ev.Text, "/")
+						log.Println(m[0] + " / " + m[1] + " / " + m[2] + " / " + m[3] + " / " + m[4] + " / " + m[5])
+					}
 					s := strings.Split(url.Path, "/")
-					fmt.Println(s[1] + " : " + s[2])
+					log.Println(s[1] + " : " + s[2])
 					str := "redmine " + s[2]
 					setMessage(str, config.Redmine.Keywords, config.Redmine.Url, redmine, &msgs)
 				} else {
