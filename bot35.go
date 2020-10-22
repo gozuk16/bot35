@@ -177,7 +177,10 @@ func run(api *slack.Client) int {
 				}
 
 				// http Summary
-				if (strings.Contains(ev.Text, "<http://") || strings.Contains(ev.Text, "<https://")) && strings.Contains(ev.Text, config.HttpSummary.Intra) {
+				if (strings.Contains(ev.Text, "<http://") || strings.Contains(ev.Text, "<https://")) &&
+					(strings.Contains(ev.Text, config.HttpSummary.Intra) &&
+					strings.Contains(ev.Text, config.Redmine.Url) == false) {
+
 					key := "<(https?://.*." + config.HttpSummary.Intra + "/?.*?)>"
 					log.Printf("key=%v\n", key)
 					r := regexp.MustCompile(key)
