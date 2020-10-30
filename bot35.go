@@ -178,8 +178,7 @@ func run(api *slack.Client) int {
 
 				// http Summary
 				if (strings.Contains(ev.Text, "<http://") || strings.Contains(ev.Text, "<https://")) &&
-					(strings.Contains(ev.Text, config.HttpSummary.Intra) &&
-					strings.Contains(ev.Text, config.Redmine.Url) == false) {
+					(strings.Contains(ev.Text, config.HttpSummary.Intra) && strings.Contains(ev.Text, config.Redmine.Url) == false) {
 
 					key := "<(https?://.*." + config.HttpSummary.Intra + "/?.*?)>"
 					log.Printf("key=%v\n", key)
@@ -221,17 +220,19 @@ func responseMention(botId string, txt string, msgs *[]string) {
 		} else if m[0] == "reload" {
 			*msgs = append(*msgs, "りろーどするよ")
 			getConfig()
-		} else if m[0] == "おみくじ" {
+		} else if m[0] == "おみくじ" || m[0] == "shuffle" || m[0] == "シャッフル" || m[0] == "しゃっふる" {
 			if len(m) == 1 {
-				*msgs = append(*msgs, "おみくじですね。候補者を入れてください。")
+				*msgs = append(*msgs, "シャッフルですね。候補をスペース区切りで入れてください。 [ @botsan shuffle a b c d ]")
 			} else {
 				var fortune []string
 				for i, v := range m {
+					if i == 0 { continue }
 					log.Printf("%v: %v\n", i, v)
 					fortune = append(fortune, v)
 				}
 				shuffle(fortune)
 				log.Printf("shuffle\n")
+				*msgs = append(*msgs, "結果発表！")
 				for i, v := range fortune {
 					log.Printf("%v: %v\n", i, v)
 					*msgs = append(*msgs, v)
