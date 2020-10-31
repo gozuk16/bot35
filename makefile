@@ -11,3 +11,6 @@ win:
 
 run:
 	go run $(SRC)
+
+test:
+	go test -run ''
