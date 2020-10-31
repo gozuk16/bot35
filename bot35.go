@@ -226,7 +226,9 @@ func responseMention(botId string, txt string, msgs *[]string) {
 			} else {
 				var fortune []string
 				for i, v := range m {
-					if i == 0 { continue }
+					if i == 0 {
+						continue
+					}
 					log.Printf("%v: %v\n", i, v)
 					fortune = append(fortune, v)
 				}
@@ -243,7 +245,7 @@ func responseMention(botId string, txt string, msgs *[]string) {
 
 }
 
-func setMessage(txt string, keywords []Keywords, endpoint string, fn func(string) string, msgs *[]string) {
+func setMessage(txt string, keywords []Keywords, endpoint string, fn func(string) (string, error), msgs *[]string) {
 	for _, k := range keywords {
 		r := regexp.MustCompile(k.Key)
 		str := r.FindAllStringSubmatch(txt, -1)
@@ -258,7 +260,12 @@ func setMessage(txt string, keywords []Keywords, endpoint string, fn func(string
 				} else {
 					url = endpoint
 				}
-				m += fn(url) + "\n"
+				if s, err := fn(url); err != nil {
+					log.Println(err)
+					m += err.Error()
+				} else {
+					m += s + "\n"
+				}
 			}
 			*msgs = append(*msgs, m)
 		}

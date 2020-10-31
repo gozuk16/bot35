@@ -334,9 +334,9 @@ var jiraIssue JiraIssue
 
 func encodeJson4Jira(url string) (JiraIssue, error) {
 	m := map[string]string{
-		"Accept": "application/json",
+		"Accept":       "application/json",
 		"Content-Type": "application/json",
-		"url": url}
+		"url":          url}
 	resp, err := getResponseWithBasicAuth(m, config.Jira.APIUser, config.Jira.APIToken)
 	if err != nil {
 		return jiraIssue, err
@@ -354,8 +354,8 @@ func encodeJson4Jira(url string) (JiraIssue, error) {
 	return jiraIssue, err
 }
 
-func jira(url string) (msg string) {
-	res, _ := encodeJson4Jira(url)
+func jira(url string) (msg string, err error) {
+	res, err := encodeJson4Jira(url)
 	fmt.Println("Key: " + res.Key)
 	fmt.Println("Project: " + res.Fields.Project.Name)
 	fmt.Println("Title: " + res.Fields.Summary)
@@ -365,5 +365,5 @@ func jira(url string) (msg string) {
 	ticketUrl := config.Jira.Url + res.Key
 	msg = res.Key + " (" + res.Fields.Status.Name + ") " + res.Fields.Project.Name + " : " + res.Fields.Summary + " [" + ticketUrl + "]"
 
-	return
+	return msg, err
 }

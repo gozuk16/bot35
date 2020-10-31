@@ -111,8 +111,8 @@ func encodeJson4Bitbucket(url string) (BitbucketRepos, error) {
 	return bitbucketRepos, err
 }
 
-func bitbucket(url string) (msg string) {
-	res, _ := encodeJson4Bitbucket(url)
+func bitbucket(url string) (msg string, err error) {
+	res, err := encodeJson4Bitbucket(url)
 	fmt.Printf("Num: %d\n", res.Size)
 	msg = ""
 	for _, v := range res.Values {
@@ -128,5 +128,5 @@ func bitbucket(url string) (msg string) {
 	//msg = ""
 	//msg = res.Key + " (" + res.Fields.Status.Name + ") " + res.Fields.Project.Name + " : " + res.Fields.Summary + " [" + ticketUrl + "]"
 
-	return
+	return msg, err
 }

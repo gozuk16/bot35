@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"time"
 	"log"
 	"strconv"
+	"time"
 )
 
 type RedmineIssue struct {
@@ -79,15 +79,15 @@ func encodeJson4Redmine(url string) (RedmineIssue, error) {
 	return redmineIssue, err
 }
 
-func redmine(url string)(msg string) {
-	res, _ := encodeJson4Redmine(url)
+func redmine(url string) (msg string, err error) {
+	res, err := encodeJson4Redmine(url)
 	fmt.Printf("ID: %d\n", res.Issue.ID)
 	fmt.Println("Project: " + res.Issue.Project.Name)
 	fmt.Println("Title: " + res.Issue.Subject)
 	fmt.Println("Status: " + res.Issue.Status.Name)
 	fmt.Println("Category: " + res.Issue.Category.Name)
 
-	msg = "#" + strconv.Itoa(res.Issue.ID) + " (" + res.Issue.Status.Name + ") " + res.Issue.Project.Name + " : " + res.Issue.Subject + " [" + url +"]"
+	msg = "#" + strconv.Itoa(res.Issue.ID) + " (" + res.Issue.Status.Name + ") " + res.Issue.Project.Name + " : " + res.Issue.Subject + " [" + url + "]"
 
-	return
+	return msg, err
 }
