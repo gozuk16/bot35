@@ -5,9 +5,8 @@
 		"url": "http://www.example.com/redmine/issues/",
 		"apiToken": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
 		"keywords": [
-			{"key": "redmine ([0-9]*)"},
-			{"key": "refs ([0-9]*)"},
-			{"key": "#([0-9].*)"}
+			{"key": "redmine ([0-9].*)"},
+			{"key": "refs ([0-9].*)"}
 		]
 	},
 	"httpSummary": {
