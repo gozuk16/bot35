@@ -6,6 +6,7 @@ import (
 )
 
 func TestRedmineSuccess(t *testing.T) {
+	config.Redmine.APIToken = "aaaa"
 	result, err := redmine("https://my.redmine.jp/demo/issues/23182")
 	if err != nil {
 		t.Fatalf("failed test %#v", err)
@@ -16,6 +17,7 @@ func TestRedmineSuccess(t *testing.T) {
 }
 
 func TestRedmineFail(t *testing.T) {
+	config.Redmine.APIToken = "bbbb"
 	_, err := redmine("https://my.redmine.jp/demo/issues/1")
 	if err == nil {
 		t.Fatal("failed test")
