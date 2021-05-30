@@ -278,19 +278,16 @@ func getConfig() {
 	log.Printf("%#v\n", config)
 }
 
-/*func postMessage(api *Client, event *) {
+func postMessage(api *slack.Client, event *slackevents.MessageEvent, msg string) {
 	_, _, err := api.PostMessage(
-		*event.Channel,
-		slack.MsgOptionText(
-			fmt.Sprintf(":wave: こんにちは <@%v> さん！", *event.User),
-			false,
-		),
+		event.Channel,
+		slack.MsgOptionText(msg, false),
 	)
 	if err != nil {
 		log.Printf("Failed to reply: %v", err)
 	}
 }
-*/
+
 func main() {
 	getConfig()
 	api := slack.New(
@@ -325,39 +322,19 @@ func main() {
 				case slackevents.CallbackEvent:
 					switch event := eventPayload.InnerEvent.Data.(type) {
 					case *slackevents.MessageEvent:
-						if event.User != selfUserId && strings.Contains(event.Text, "こんにちは") {
-							/*postMessage(&api, &event)*/
-							_, _, err := api.PostMessage(
-								event.Channel,
-								slack.MsgOptionText(
-									fmt.Sprintf(":wave: こんにちは <@%v> さん！", event.User),
-									false,
-								),
-							)
-							if err != nil {
-								log.Printf("Failed to reply: %v", err)
-							}
+						if event.User != selfUserId && (strings.Contains(event.Text, "hello") ||
+							strings.Contains(event.Text, "こんにちは")) {
+							msg := fmt.Sprintf(":wave: こんにちは <@%v> さん！", event.User)
+							postMessage(api, event, msg)
 						} else if event.User != selfUserId && strings.Contains(event.Text, "reload config") {
-							_, _, err := api.PostMessage(
-								event.Channel,
-								slack.MsgOptionText("リロードするよ", false),
-							)
-							if err != nil {
-								log.Printf("Failed to reply: %v", err)
-							}
+							postMessage(api, event, "リロードするよ")
 							getConfig()
 						} else if event.User != selfUserId && (strings.Contains(event.Text, "おみくじ") ||
 							strings.Contains(event.Text, "shuffle") ||
 							strings.Contains(event.Text, "シャッフル") ||
 							strings.Contains(event.Text, "しゃっふる")) {
 							msg := setShuffle(event.Text)
-							_, _, err := api.PostMessage(
-								event.Channel,
-								slack.MsgOptionText(msg, false),
-							)
-							if err != nil {
-								log.Printf("Failed to reply: %v", err)
-							}
+							postMessage(api, event, msg)
 						}
 					default:
 						socketMode.Debugf("Skipped: %v", event)
