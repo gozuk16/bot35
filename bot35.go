@@ -11,7 +11,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/nlopes/slack"
+	"github.com/slack-go/slack"
+	"github.com/slack-go/slack/slackevents"
+	"github.com/slack-go/slack/socketmode"
 )
 
 type Keywords struct {
@@ -52,7 +54,8 @@ type Standard struct {
 
 type Config struct {
 	BotId               string
-	SlackAPIToken       string
+	SlackAppToken       string
+	SlackBotToken       string
 	Redmine             Redmine
 	HttpSummary         HttpSummary
 	Jira                Jira
@@ -65,19 +68,6 @@ type Config struct {
 var config Config
 
 func run(api *slack.Client) int {
-
-	nullpo := "```"
-	nullpo += `
-　　 （　・∀・）　　　|　|　ｶﾞｯ
-　　と　　　　）　 　 |　|
-　　　 Ｙ　/ノ　　　 人
-　　　　 /　）　 　 < 　>__Λ∩
-　　 ＿/し'　／／. Ｖ｀Д´）/ ←>>1
-　　（＿フ彡　　　　　 　　/
-`
-	nullpo += "```"
-
-	botId := config.BotId
 
 	rtm := api.NewRTM()
 	go rtm.ManageConnection()
@@ -104,14 +94,6 @@ func run(api *slack.Client) int {
 				log.Printf("ID: %s, Fullname: %s, Email: %s\n", user.ID, user.Profile.RealName, user.Profile.Email)
 
 				msgs := []string{}
-
-				if ev.Text == "こんにちは" || ev.Text == "hello" {
-					msgs = append(msgs, user.Profile.RealName+"さん、こんにちは(^-^)")
-				}
-
-				if ev.Text == "ぬるぽ" || ev.Text == "NullPointerException" {
-					msgs = append(msgs, nullpo)
-				}
 
 				// Redmine
 				if strings.Contains(ev.Text, config.Redmine.Url) {
@@ -195,9 +177,6 @@ func run(api *slack.Client) int {
 					}
 				}
 
-				// メンション対応
-				responseMention(botId, ev.Text, &msgs)
-
 				for _, m := range msgs {
 					rtm.SendMessage(rtm.NewOutgoingMessage(m, ev.Channel))
 				}
@@ -210,39 +189,39 @@ func run(api *slack.Client) int {
 	}
 }
 
-func responseMention(botId string, txt string, msgs *[]string) {
-	log.Printf("botId: %v\n", botId)
-	if strings.HasPrefix(txt, "<@"+botId+">") {
-		m := strings.Split(strings.TrimSpace(txt), " ")[1:]
-		log.Printf("m: %v\n", m)
-		if len(m) == 0 {
-			*msgs = append(*msgs, "呼んだ？")
-		} else if m[0] == "reload" {
-			*msgs = append(*msgs, "りろーどするよ")
-			getConfig()
-		} else if m[0] == "おみくじ" || m[0] == "shuffle" || m[0] == "シャッフル" || m[0] == "しゃっふる" {
-			if len(m) == 1 {
-				*msgs = append(*msgs, "シャッフルですね。候補をスペース区切りで入れてください。 [ @botsan shuffle a b c d ]")
-			} else {
-				var fortune []string
-				for i, v := range m {
-					if i == 0 {
-						continue
-					}
-					log.Printf("%v: %v\n", i, v)
-					fortune = append(fortune, v)
-				}
-				shuffle(fortune)
-				log.Printf("shuffle\n")
-				*msgs = append(*msgs, "結果発表！")
-				for i, v := range fortune {
-					log.Printf("%v: %v\n", i, v)
-					*msgs = append(*msgs, v)
-				}
+func setShuffle(txt string) string {
+	m := strings.Split(strings.TrimSpace(txt), " ")[1:]
+	log.Printf("m: %v\n", m)
+	if len(m) == 1 {
+		return "シャッフルですね。候補をスペース区切りで入れてください。 [ ex) shuffle a b c d ]"
+	} else {
+		var fortune []string
+		for i, v := range m {
+			if i == 0 {
+				continue
 			}
+			log.Printf("%v: %v\n", i, v)
+			fortune = append(fortune, v)
 		}
+		shuffle(fortune)
+		log.Printf("shuffle\n")
+		msg := "結果発表！\n"
+		for i, v := range fortune {
+			log.Printf("%v: %v\n", i, v)
+			msg += " " + v
+		}
+		return msg
 	}
+}
 
+func shuffle(data []string) {
+	n := len(data)
+	log.Printf("n=%v\n", n)
+	for i := n - 1; i >= 0; i-- {
+		j := rand.Intn(i + 1)
+		log.Printf("j=%v, i+1=%v", j, i+1)
+		data[i], data[j] = data[j], data[i]
+	}
 }
 
 func setMessage(txt string, keywords []Keywords, endpoint string, fn func(string) (string, error), msgs *[]string) {
@@ -269,16 +248,6 @@ func setMessage(txt string, keywords []Keywords, endpoint string, fn func(string
 			}
 			*msgs = append(*msgs, m)
 		}
-	}
-}
-
-func shuffle(data []string) {
-	n := len(data)
-	log.Printf("n=%v\n", n)
-	for i := n - 1; i >= 0; i-- {
-		j := rand.Intn(i + 1)
-		log.Printf("j=%v, i+1=%v", j, i+1)
-		data[i], data[j] = data[j], data[i]
 	}
 }
 
@@ -309,10 +278,96 @@ func getConfig() {
 	log.Printf("%#v\n", config)
 }
 
+/*func postMessage(api *Client, event *) {
+	_, _, err := api.PostMessage(
+		*event.Channel,
+		slack.MsgOptionText(
+			fmt.Sprintf(":wave: こんにちは <@%v> さん！", *event.User),
+			false,
+		),
+	)
+	if err != nil {
+		log.Printf("Failed to reply: %v", err)
+	}
+}
+*/
 func main() {
 	getConfig()
-	log.Printf("config.SlackAPIToken: %v\n", config.SlackAPIToken)
-	api := slack.New(config.SlackAPIToken)
-	//api.SetDebug(true)
-	os.Exit(run(api))
+	api := slack.New(
+		config.SlackBotToken,
+		slack.OptionAppLevelToken(config.SlackAppToken),
+		slack.OptionDebug(true),
+		slack.OptionLog(log.New(os.Stdout, "api: ", log.Lshortfile|log.LstdFlags)),
+	)
+	socketMode := socketmode.New(
+		api,
+		socketmode.OptionDebug(true),
+		socketmode.OptionLog(log.New(os.Stdout, "sm: ", log.Lshortfile|log.LstdFlags)),
+	)
+	authTest, authTestErr := api.AuthTest()
+	if authTestErr != nil {
+		fmt.Fprintf(os.Stderr, "SLACK_BOT_TOKEN is invalid: %v\n", authTestErr)
+		os.Exit(1)
+	}
+	selfUserId := authTest.UserID
+
+	go func() {
+		for envelope := range socketMode.Events {
+			switch envelope.Type {
+			case socketmode.EventTypeEventsAPI:
+				// イベント API のハンドリング
+
+				// 3 秒以内にとりあえず ack
+				socketMode.Ack(*envelope.Request)
+
+				eventPayload, _ := envelope.Data.(slackevents.EventsAPIEvent)
+				switch eventPayload.Type {
+				case slackevents.CallbackEvent:
+					switch event := eventPayload.InnerEvent.Data.(type) {
+					case *slackevents.MessageEvent:
+						if event.User != selfUserId && strings.Contains(event.Text, "こんにちは") {
+							/*postMessage(&api, &event)*/
+							_, _, err := api.PostMessage(
+								event.Channel,
+								slack.MsgOptionText(
+									fmt.Sprintf(":wave: こんにちは <@%v> さん！", event.User),
+									false,
+								),
+							)
+							if err != nil {
+								log.Printf("Failed to reply: %v", err)
+							}
+						} else if event.User != selfUserId && strings.Contains(event.Text, "reload config") {
+							_, _, err := api.PostMessage(
+								event.Channel,
+								slack.MsgOptionText("リロードするよ", false),
+							)
+							if err != nil {
+								log.Printf("Failed to reply: %v", err)
+							}
+							getConfig()
+						} else if event.User != selfUserId && (strings.Contains(event.Text, "おみくじ") ||
+							strings.Contains(event.Text, "shuffle") ||
+							strings.Contains(event.Text, "シャッフル") ||
+							strings.Contains(event.Text, "しゃっふる")) {
+							msg := setShuffle(event.Text)
+							_, _, err := api.PostMessage(
+								event.Channel,
+								slack.MsgOptionText(msg, false),
+							)
+							if err != nil {
+								log.Printf("Failed to reply: %v", err)
+							}
+						}
+					default:
+						socketMode.Debugf("Skipped: %v", event)
+					}
+				default:
+					socketMode.Debugf("unsupported Events API eventPayload received")
+				}
+			}
+		}
+	}()
+
+	socketMode.Run()
 }
