@@ -224,6 +224,7 @@ func shuffle(data []string) {
 	}
 }
 
+// setMessage
 func setMessage(txt string, keywords []Keywords, endpoint string, fn func(string) (string, error), msgs *[]string) {
 	for _, k := range keywords {
 		r := regexp.MustCompile(k.Key)
@@ -249,6 +250,35 @@ func setMessage(txt string, keywords []Keywords, endpoint string, fn func(string
 			*msgs = append(*msgs, m)
 		}
 	}
+}
+
+// createMessage キーワードを分解して渡された任意のfuncを呼んで結果を返す
+func createMessage(t string, keywords []Keywords, endpoint string, fn func(string) (string, error)) string {
+	for _, k := range keywords {
+		r := regexp.MustCompile(k.Key)
+		str := r.FindAllStringSubmatch(t, -1)
+		if str != nil {
+			log.Printf("str len=%d\n", len(str))
+			var m string
+			for i, v := range str {
+				log.Printf("str[%d]=%v\n", i, v[0])
+				url := ""
+				if len(v) > 1 {
+					url = endpoint + v[1]
+				} else {
+					url = endpoint
+				}
+				if s, err := fn(url); err != nil {
+					log.Println(err)
+					m += err.Error()
+				} else {
+					m += s + "\n"
+				}
+			}
+			return m
+		}
+	}
+	return ""
 }
 
 func getConfig() {
@@ -320,24 +350,41 @@ func main() {
 				eventPayload, _ := envelope.Data.(slackevents.EventsAPIEvent)
 				switch eventPayload.Type {
 				case slackevents.CallbackEvent:
-					switch event := eventPayload.InnerEvent.Data.(type) {
+					switch ev := eventPayload.InnerEvent.Data.(type) {
 					case *slackevents.MessageEvent:
-						if event.User != selfUserId && (strings.Contains(event.Text, "hello") ||
-							strings.Contains(event.Text, "こんにちは")) {
-							msg := fmt.Sprintf(":wave: こんにちは <@%v> さん！", event.User)
-							postMessage(api, event, msg)
-						} else if event.User != selfUserId && strings.Contains(event.Text, "reload config") {
-							postMessage(api, event, "リロードするよ")
+						if ev.User != selfUserId && (strings.Contains(ev.Text, "hello") ||
+							strings.Contains(ev.Text, "こんにちは")) {
+							msg := fmt.Sprintf(":wave: こんにちは <@%v> さん！", ev.User)
+							postMessage(api, ev, msg)
+						} else if ev.User != selfUserId && strings.Contains(ev.Text, "reload config") {
+							postMessage(api, ev, "リロードするよ")
 							getConfig()
-						} else if event.User != selfUserId && (strings.Contains(event.Text, "おみくじ") ||
-							strings.Contains(event.Text, "shuffle") ||
-							strings.Contains(event.Text, "シャッフル") ||
-							strings.Contains(event.Text, "しゃっふる")) {
-							msg := setShuffle(event.Text)
-							postMessage(api, event, msg)
+						} else if ev.User != selfUserId && (strings.Contains(ev.Text, "おみくじ") ||
+							strings.Contains(ev.Text, "shuffle") ||
+							strings.Contains(ev.Text, "シャッフル") ||
+							strings.Contains(ev.Text, "しゃっふる")) {
+							msg := setShuffle(ev.Text)
+							postMessage(api, ev, msg)
+						} else if ev.User != selfUserId && strings.Contains(ev.Text, config.Redmine.Url) {
+							// Redmine
+							log.Println(ev.Text)
+							var text string
+							r := regexp.MustCompile(config.Redmine.Url + "([0-9]*)")
+							str := r.FindAllStringSubmatch(ev.Text, -1)
+							if str != nil {
+								log.Printf("str len=%d\n", len(str))
+								for i, v := range str {
+									log.Printf("str[%d]0=%v\n", i, v[0])
+									log.Printf("str[%d]1=%v\n", i, v[1])
+									text = "redmine " + v[1]
+									break
+								}
+							}
+							m := createMessage(text, config.Redmine.Keywords, config.Redmine.Url, redmine)
+							postMessage(api, ev, m)
 						}
 					default:
-						socketMode.Debugf("Skipped: %v", event)
+						socketMode.Debugf("Skipped: %v", ev)
 					}
 				default:
 					socketMode.Debugf("unsupported Events API eventPayload received")
