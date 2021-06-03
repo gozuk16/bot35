@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 
 	"github.com/slack-go/slack"
@@ -38,13 +39,13 @@ type Jira struct {
 	Keywords []Keywords
 }
 
-/*
 type Bitbucket struct {
 	Endpoint string
 	Url      string
+	UserId   string
+	Password string
 	Keywords []Keywords
 }
-*/
 
 type Standard struct {
 	Endpoint string
@@ -59,7 +60,7 @@ type Config struct {
 	Redmine             Redmine
 	HttpSummary         HttpSummary
 	Jira                Jira
-	Bitbucket           Standard
+	Bitbucket           Bitbucket
 	BitbucketPR         Standard
 	QuestionsUnanswered Standard
 	QuestionsList       Standard
@@ -94,32 +95,6 @@ func run(api *slack.Client) int {
 				log.Printf("ID: %s, Fullname: %s, Email: %s\n", user.ID, user.Profile.RealName, user.Profile.Email)
 
 				msgs := []string{}
-
-				// Redmine
-				if strings.Contains(ev.Text, config.Redmine.Url) {
-					log.Println(ev.Text)
-					var text string
-					r := regexp.MustCompile(config.Redmine.Url + "([0-9]*)")
-					str := r.FindAllStringSubmatch(ev.Text, -1)
-					if str != nil {
-						log.Printf("str len=%d\n", len(str))
-						for i, v := range str {
-							log.Printf("str[%d]0=%v\n", i, v[0])
-							log.Printf("str[%d]1=%v\n", i, v[1])
-							text = "redmine " + v[1]
-							break
-						}
-					}
-					setMessage(text, config.Redmine.Keywords, config.Redmine.Url, redmine, &msgs)
-				} else {
-					setMessage(ev.Text, config.Redmine.Keywords, config.Redmine.Url, redmine, &msgs)
-				}
-
-				// JIRA
-				setMessage(ev.Text, config.Jira.Keywords, config.Jira.Endpoint, jira, &msgs)
-
-				// Bitbucket
-				setMessage(ev.Text, config.Bitbucket.Keywords, config.Bitbucket.Endpoint, bitbucket, &msgs)
 
 				// Bitbucket Pull-Request
 				for _, k := range config.BitbucketPR.Keywords {
@@ -254,14 +229,16 @@ func setMessage(txt string, keywords []Keywords, endpoint string, fn func(string
 
 // createMessage キーワードを分解して渡された任意のfuncを呼んで結果を返す
 func createMessage(t string, keywords []Keywords, endpoint string, fn func(string) (string, error)) string {
+	pt, _, line, _ := runtime.Caller(0) // debug用に現在のスタックから情報を取得
+
 	for _, k := range keywords {
 		r := regexp.MustCompile(k.Key)
 		str := r.FindAllStringSubmatch(t, -1)
 		if str != nil {
-			log.Printf("str len=%d\n", len(str))
+			log.Printf("%s, %d: str len=%d\n", runtime.FuncForPC(pt).Name(), line, len(str))
 			var m string
 			for i, v := range str {
-				log.Printf("str[%d]=%v\n", i, v[0])
+				log.Printf("%s, %d: str[%d]=%v\n", runtime.FuncForPC(pt).Name(), line, i, v[0])
 				url := ""
 				if len(v) > 1 {
 					url = endpoint + v[1]
@@ -269,7 +246,7 @@ func createMessage(t string, keywords []Keywords, endpoint string, fn func(strin
 					url = endpoint
 				}
 				if s, err := fn(url); err != nil {
-					log.Println(err)
+					fmt.Println(err)
 					m += err.Error()
 				} else {
 					m += s + "\n"
@@ -366,8 +343,7 @@ func main() {
 							msg := setShuffle(ev.Text)
 							postMessage(api, ev, msg)
 						} else if ev.User != selfUserId && strings.Contains(ev.Text, config.Redmine.Url) {
-							// Redmine
-							log.Println(ev.Text)
+							// Redmine URL
 							var text string
 							r := regexp.MustCompile(config.Redmine.Url + "([0-9]*)")
 							str := r.FindAllStringSubmatch(ev.Text, -1)
@@ -382,6 +358,43 @@ func main() {
 							}
 							m := createMessage(text, config.Redmine.Keywords, config.Redmine.Url, redmine)
 							postMessage(api, ev, m)
+
+						} else if ev.User != selfUserId && (strings.Contains(ev.Text, "<http://") || strings.Contains(ev.Text, "<https://")) &&
+							strings.Contains(ev.Text, config.HttpSummary.Intra) {
+							if !strings.Contains(ev.Text, config.Redmine.Url) {
+								// http Summary
+								key := "<(https?://.*." + config.HttpSummary.Intra + "/?.*?)>"
+								log.Printf("key=%v\n", key)
+								r := regexp.MustCompile(key)
+								str := r.FindAllStringSubmatch(ev.Text, -1)
+								log.Printf("str=%v\n", str)
+								if str != nil {
+									log.Printf("str len=%d\n", len(str))
+									//var msg string
+									for i, v := range str {
+										log.Printf("str[%d]=%v\n", i, v[1])
+										postMessage(api, ev, httpSummary(v[1]))
+									}
+								}
+							}
+						} else if ev.User != selfUserId {
+							// Redmine
+							m := createMessage(ev.Text, config.Redmine.Keywords, config.Redmine.Url, redmine)
+							if m != "" {
+								postMessage(api, ev, m)
+							}
+
+							// JIRA
+							m = createMessage(ev.Text, config.Jira.Keywords, config.Jira.Endpoint, jira)
+							if m != "" {
+								postMessage(api, ev, m)
+							}
+
+							// Bitbucket
+							m = createMessage(ev.Text, config.Bitbucket.Keywords, config.Bitbucket.Endpoint, bitbucket)
+							if m != "" {
+								postMessage(api, ev, m)
+							}
 						}
 					default:
 						socketMode.Debugf("Skipped: %v", ev)

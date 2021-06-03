@@ -1,13 +1,14 @@
 package main
 
 import (
-	"os"
+	"crypto/tls"
 	"fmt"
 	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"crypto/tls"
+	"os"
+	"runtime"
 )
 
 func newRequest(m map[string]string) (*http.Request, error) {
@@ -34,22 +35,32 @@ func newRequest(m map[string]string) (*http.Request, error) {
 }
 
 func getResponseWithBasicAuth(m map[string]string, user string, passwd string) (*http.Response, error) {
+	pt, _, line, _ := runtime.Caller(0) // debug用に現在のスタックから情報を取得
+
 	req, err := newRequest(m)
 
 	proxyUrl, _ := url.Parse(os.Getenv("HTTP_PROXY"))
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		Proxy: http.ProxyURL(proxyUrl),
-	}
-	client := &http.Client{
-		Transport: tr,
-	}
-
 	proxy := "no"
 	if proxyURL, _ := http.ProxyFromEnvironment(req); proxyURL != nil {
 		proxy = proxyURL.String()
 	}
-	log.Printf("[DEBUG] request proxy: %s\n", proxy)
+	log.Printf("%s, %d: [DEBUG] request proxy: %s\n", runtime.FuncForPC(pt).Name(), line, proxy)
+
+
+	var tr *http.Transport
+	if proxy == "no" {
+		tr = &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+	} else {
+		tr = &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			Proxy:           http.ProxyURL(proxyUrl),
+		}
+	}
+	client := &http.Client{
+		Transport: tr,
+	}
 
 	req.SetBasicAuth(user, passwd)
 	resp, err := client.Do(req)
