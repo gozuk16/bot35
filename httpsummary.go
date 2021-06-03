@@ -3,8 +3,9 @@ package main
 import (
 	"fmt"
 	"log"
-	"github.com/PuerkitoBio/goquery"
 	"net/url"
+
+	"github.com/PuerkitoBio/goquery"
 )
 
 func getPage(url string) (string, error) {
@@ -29,7 +30,8 @@ func httpSummary(queryUrl string) (msg string) {
 	fmt.Println("host: " + u.Host)
 	fmt.Println("Response: " + res)
 
-	msg = "> " + u.Host + "\n> <" + queryUrl + "|*" + res + "*>"
+	//msg = "> " + u.Host + "\n> <" + queryUrl + "|*" + res + "*>"
+	msg = "> <" + queryUrl + "|*" + res + "*>"
 
 	return
 }
