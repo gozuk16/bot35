@@ -85,15 +85,6 @@ func run(api *slack.Client) int {
 				log.Print("Hello Event")
 
 			case *slack.MessageEvent:
-				log.Printf("Message: %v\n", ev)
-				log.Printf("ev.User: %v\n", ev.User)
-				log.Printf("ev.Text: %v\n", ev.Text)
-				log.Printf("ev.Channel: %v\n", ev.Channel)
-				log.Printf("ev.Msg.Text: %v\n", ev.Msg.Text)
-
-				user, _ := api.GetUserInfo(ev.User)
-				log.Printf("ID: %s, Fullname: %s, Email: %s\n", user.ID, user.Profile.RealName, user.Profile.Email)
-
 				msgs := []string{}
 
 				// Bitbucket Pull-Request
@@ -112,43 +103,6 @@ func run(api *slack.Client) int {
 							msg += pr(bitbucketPRApi) + "\n"
 						}
 						rtm.SendMessage(rtm.NewOutgoingMessage(msg, ev.Channel))
-					}
-				}
-
-				// Questions for Confluence
-				//setMessage(ev.Text, config.QuestionsUnanswered.Keywords, config.QuestionsUnanswered.Endpoint, confluence, &msgs)
-				for _, k := range config.QuestionsUnanswered.Keywords {
-					r := regexp.MustCompile(k.Key)
-					str := r.FindAllStringSubmatch(ev.Text, -1)
-					if str != nil {
-						log.Printf("str len=%d\n", len(str))
-						var msg string
-						for i, v := range str {
-							log.Printf("str[%d]=%v\n", i, v[0])
-							//confluenceApi := config.Confluence.Endpoint + v[1]
-							confluenceApi := config.QuestionsUnanswered.Endpoint
-							msg += confluence(confluenceApi) + "\n"
-						}
-						rtm.SendMessage(rtm.NewOutgoingMessage(msg, ev.Channel))
-					}
-				}
-
-				// http Summary
-				if (strings.Contains(ev.Text, "<http://") || strings.Contains(ev.Text, "<https://")) &&
-					(strings.Contains(ev.Text, config.HttpSummary.Intra) && strings.Contains(ev.Text, config.Redmine.Url) == false) {
-
-					key := "<(https?://.*." + config.HttpSummary.Intra + "/?.*?)>"
-					log.Printf("key=%v\n", key)
-					r := regexp.MustCompile(key)
-					str := r.FindAllStringSubmatch(ev.Text, -1)
-					log.Printf("str=%v\n", str)
-					if str != nil {
-						log.Printf("str len=%d\n", len(str))
-						//var msg string
-						for i, v := range str {
-							log.Printf("str[%d]=%v\n", i, v[1])
-							rtm.SendMessage(rtm.NewOutgoingMessage(httpSummary(v[1]), ev.Channel))
-						}
 					}
 				}
 
