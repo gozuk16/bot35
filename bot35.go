@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"math/rand"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -315,6 +316,7 @@ func main() {
 
 						} else if ev.User != selfUserId && (strings.Contains(ev.Text, "<http://") || strings.Contains(ev.Text, "<https://")) &&
 							strings.Contains(ev.Text, config.HttpSummary.Intra) {
+							var url string
 							if !strings.Contains(ev.Text, config.Redmine.Url) {
 								// http Summary
 								key := "<(https?://.*." + config.HttpSummary.Intra + "/?.*?)>"
@@ -327,7 +329,42 @@ func main() {
 									//var msg string
 									for i, v := range str {
 										log.Printf("str[%d]=%v\n", i, v[1])
-										postMessage(api, ev, httpSummary(v[1]))
+										url = v[1]
+										if url != "" {
+											imgext := []string{"png", "jpg", "bmp"}
+											for _, ext := range imgext {
+												if strings.HasSuffix(url, ext) {
+													log.Println("img: ", ext)
+													if strings.HasPrefix(url, "https://jira.in.infocom.co.jp/redmine/attachments") {
+														url = strings.Replace(url, "attachments", "attachments/download", 1)
+														log.Println(url)
+													}
+													req, _ := http.NewRequest("GET", url, nil)
+													req.Header.Set("X-Redmine-API-Key", config.Redmine.APIToken)
+													client := new(http.Client)
+													resp, err := client.Do(req)
+													if err != nil {
+														log.Println(err, url)
+													} else {
+														defer resp.Body.Close()
+
+														_, err = api.UploadFile(
+															slack.FileUploadParameters{
+																Reader:   resp.Body,
+																Filename: "image: " + url,
+																Channels: []string{ev.Channel},
+															})
+														if err != nil {
+															log.Println(err, url)
+														}
+													}
+													url = "" // 画像の場合は空にして後でpostMessageしないように
+												}
+											}
+										}
+									}
+									if url != "" {
+										postMessage(api, ev, httpSummary(url))
 									}
 								}
 							}
