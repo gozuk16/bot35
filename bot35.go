@@ -28,8 +28,19 @@ type Redmine struct {
 	Keywords []Keywords
 }
 
+type Auth struct {
+	Site  string
+	Token string
+}
+
+type Exclude struct {
+	Site string
+}
+
 type HttpSummary struct {
-	Intra string
+	Intra   string
+	Auth    []Auth
+	Exclude []Exclude
 }
 
 type Jira struct {
@@ -321,6 +332,13 @@ func main() {
 								// http Summary
 								key := "<(https?://.*." + config.HttpSummary.Intra + "/?.*?)>"
 								log.Printf("key=%v\n", key)
+
+								// exludeなら抜ける
+								for _, ex := range config.HttpSummary.Exclude {
+									if strings.Contains(ev.Text, ex) {
+										break
+									}
+								}
 								r := regexp.MustCompile(key)
 								str := r.FindAllStringSubmatch(ev.Text, -1)
 								log.Printf("str=%v\n", str)
