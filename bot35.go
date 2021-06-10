@@ -335,7 +335,7 @@ func main() {
 
 								// exludeなら抜ける
 								for _, ex := range config.HttpSummary.Exclude {
-									if strings.Contains(ev.Text, ex) {
+									if strings.Contains(ev.Text, ex.Site) {
 										break
 									}
 								}
