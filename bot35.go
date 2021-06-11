@@ -334,11 +334,19 @@ func main() {
 								log.Printf("key=%v\n", key)
 
 								// exludeなら抜ける
+								bf := false
 								for _, ex := range config.HttpSummary.Exclude {
 									if strings.Contains(ev.Text, ex.Site) {
+										log.Println("exclude break")
+										bf = true
 										break
 									}
 								}
+								if bf {
+									break
+								}
+
+								log.Println("not exclude")
 								r := regexp.MustCompile(key)
 								str := r.FindAllStringSubmatch(ev.Text, -1)
 								log.Printf("str=%v\n", str)
