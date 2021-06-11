@@ -351,6 +351,7 @@ func main() {
 										if url != "" {
 											imgext := []string{"png", "jpg", "bmp"}
 											for _, ext := range imgext {
+												// ToDo: 切り出して設定化
 												if strings.HasSuffix(url, ext) {
 													log.Println("img: ", ext)
 													if strings.HasPrefix(url, "https://jira.in.infocom.co.jp/redmine/attachments") {
