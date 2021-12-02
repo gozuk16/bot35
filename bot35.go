@@ -133,14 +133,17 @@ func run(api *slack.Client) int {
 func setShuffle(txt string) string {
 	m := strings.Split(strings.TrimSpace(txt), " ")[1:]
 	log.Printf("m: %v\n", m)
-	if len(m) == 1 {
-		return "シャッフルですね。候補をスペース区切りで入れてください。 [ ex) shuffle a b c d ]"
+	if len(m) == 0 {
+		// 0件の場合「→」でも試みる
+		m = strings.Split(strings.TrimSpace(txt), "→")[1:]
+		log.Printf("m: %v\n", m)
+	}
+
+	if len(m) == 0 {
+		return "シャッフルですね。候補をスペースか→で区切りを入れてください。 ex) [shuffle a b c d | shuffle a→b→c→d]"
 	} else {
 		var fortune []string
 		for i, v := range m {
-			if i == 0 {
-				continue
-			}
 			log.Printf("%v: %v\n", i, v)
 			fortune = append(fortune, v)
 		}
@@ -149,7 +152,11 @@ func setShuffle(txt string) string {
 		msg := "結果発表！\n"
 		for i, v := range fortune {
 			log.Printf("%v: %v\n", i, v)
-			msg += " " + v
+			if i == 0 {
+				msg += v
+			} else {
+				msg += "→" + v
+			}
 		}
 		return msg
 	}
