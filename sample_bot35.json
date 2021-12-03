@@ -16,7 +16,7 @@
 		"endpoint": "https://user:password@jira.example.com/rest/api/2/issue/",
 		"url": "https://jira.example.com/browse/",
 		"keywords": [
-			{"key": "jira ([a-zA-Z]*-[0-9]*)"},
+			{"key": "jira ([a-zA-Z0-9]*-[0-9]*)"},
 			{"key": "#([a-zA-Z].*-[0-9].*)"}
 		]
 	},
