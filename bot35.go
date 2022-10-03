@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/slack-go/slack"
@@ -23,9 +24,10 @@ type Keywords struct {
 }
 
 type Redmine struct {
-	Url      string
-	APIToken string
-	Keywords []Keywords
+	EndpointParam string
+	Url           string
+	APIToken      string
+	Keywords      []Keywords
 }
 
 type Auth struct {
@@ -130,27 +132,37 @@ func run(api *slack.Client) int {
 	}
 }
 
-func setShuffle(txt string) string {
-	m := strings.Split(strings.TrimSpace(txt), " ")[1:]
-	log.Printf("m: %v\n", m)
-	if len(m) == 0 {
-		// 0件の場合「→」でも試みる
-		m = strings.Split(strings.TrimSpace(txt), "→")[1:]
-		log.Printf("m: %v\n", m)
+func isShuffle(selfUserId string, user string, text string) bool {
+	if user != selfUserId && (strings.Contains(text, "おみくじ") ||
+		strings.Contains(text, "shuffle") ||
+		strings.Contains(text, "シャッフル") ||
+		strings.Contains(text, "しゃっふる")) {
+		return true
 	}
+	return false
+}
 
-	if len(m) == 0 {
-		return "シャッフルですね。候補をスペースか→で区切りを入れてください。 ex) [shuffle a b c d | shuffle a→b→c→d]"
+// setShuffle ランダムに並べ替えた順番を返す
+func setShuffle(txt string) string {
+	// spaceと→の両方を区切り文字とする
+	reg := "[ →]"
+
+	// 1つ目はコマンドなんで取り去る
+	m := regexp.MustCompile(reg).Split(txt, -1)[1:]
+	log.Printf("text split: len=%d, text=%v\n", len(m), m)
+	if len(m) <= 1 {
+		//return fmt.Sprintf("%sをシャッフルできません。右のように入力してください。 [shuffle a b c d | shuffle a→b→c→d]", txt)
+		return fmt.Sprintf("シャッフルできません。右のように入力してください。\n%s -> [shuffle a b c d | shuffle a→b→c→d]", txt)
 	} else {
-		var fortune []string
+		var member []string
 		for i, v := range m {
 			log.Printf("%v: %v\n", i, v)
-			fortune = append(fortune, v)
+			member = append(member, v)
 		}
-		shuffle(fortune)
+		shuffle(member)
 		log.Printf("shuffle\n")
 		msg := "結果発表！\n"
-		for i, v := range fortune {
+		for i, v := range member {
 			log.Printf("%v: %v\n", i, v)
 			if i == 0 {
 				msg += v
@@ -162,6 +174,7 @@ func setShuffle(txt string) string {
 	}
 }
 
+// shuffle Fisher-Yates shuffle
 func shuffle(data []string) {
 	n := len(data)
 	log.Printf("n=%v\n", n)
@@ -170,6 +183,67 @@ func shuffle(data []string) {
 		log.Printf("j=%v, i+1=%v", j, i+1)
 		data[i], data[j] = data[j], data[i]
 	}
+}
+
+// isWebPage textにWebページが含まれているか判定する
+func isWebPage(text string) bool {
+	if strings.Contains(text, "<http://") || strings.Contains(text, "<https://") {
+		return true
+	}
+	return false
+}
+
+// isIntraWebPage textにイントラのドメインが含まれているか判定する
+func isIntraWebPage(text string) bool {
+	if strings.Contains(text, config.HttpSummary.Intra) {
+		return true
+	}
+	return false
+}
+
+func getImage(api *slack.Client, ev *slackevents.MessageEvent, url *string) {
+	log.Println(*url)
+	if *url == "" {
+		return
+	}
+
+	imgext := []string{"png", "jpg", "bmp"}
+	for _, ext := range imgext {
+		if strings.HasSuffix(strings.ToLower(*url), ext) {
+			log.Println("img: ", ext)
+			req, _ := http.NewRequest("GET", *url, nil)
+			// ToDo: 切り出して設定化
+			if strings.Contains(*url, "https://jira.in.infocom.co.jp/redmine/attachments") {
+				//*url = strings.Replace(*url, "attachments", "attachments/download", 1)
+				req.Header.Set("X-Redmine-API-Key", config.Redmine.APIToken)
+			}
+			client := new(http.Client)
+			resp, err := client.Do(req)
+			if err != nil {
+				log.Println(err, *url)
+			} else {
+				defer resp.Body.Close()
+
+				_, err = api.UploadFile(
+					slack.FileUploadParameters{
+						Reader:   resp.Body,
+						Filename: "image: " + *url,
+						Channels: []string{ev.Channel},
+					})
+				if err != nil {
+					log.Println(err, *url)
+				}
+			}
+			*url = "" // 画像の場合は空にして後でpostMessageしないように
+		}
+	}
+}
+
+func isHello(selfUserId string, user string, text string) bool {
+	if user != selfUserId && (strings.Contains(text, "hello") || strings.Contains(text, "こんにちは")) {
+		return true
+	}
+	return false
 }
 
 // setMessage
@@ -233,25 +307,28 @@ func createMessage(t string, keywords []Keywords, endpoint string, fn func(strin
 
 func getConfig() {
 	configFile := "bot35.json"
-	for _, p := range filepath.SplitList(os.Getenv("PATH")) {
-		fmt.Println(p)
-		f := filepath.Join(p, configFile)
-		_, err := os.Stat(f)
-		if err == nil {
-			fmt.Println(f)
-			configFile = f
-			break
-		}
+
+	pwd, err := os.Getwd()
+	if err != nil {
+		log.Println("ERROR:", err)
+		os.Exit(1)
+	}
+
+	f := filepath.Join(pwd, configFile)
+	_, err = os.Stat(f)
+	if err == nil {
+		log.Println(f)
+		configFile = f
 	}
 	jsonBuffer, err := ioutil.ReadFile(configFile)
 	if err != nil {
-		log.Println("ERROR: ", err)
+		log.Println("ERROR:", err)
 		os.Exit(1)
 	}
 
 	err = json.Unmarshal(jsonBuffer, &config)
 	if err != nil {
-		log.Println("ERROR: ", err)
+		log.Println("ERROR:", err)
 		os.Exit(1)
 	}
 
@@ -269,6 +346,7 @@ func postMessage(api *slack.Client, event *slackevents.MessageEvent, msg string)
 }
 
 func main() {
+	setLogger()
 	getConfig()
 	api := slack.New(
 		config.SlackBotToken,
@@ -302,106 +380,83 @@ func main() {
 				case slackevents.CallbackEvent:
 					switch ev := eventPayload.InnerEvent.Data.(type) {
 					case *slackevents.MessageEvent:
-						if ev.User != selfUserId && (strings.Contains(ev.Text, "hello") ||
-							strings.Contains(ev.Text, "こんにちは")) {
+						if isHello(selfUserId, ev.User, ev.Text) {
 							msg := fmt.Sprintf(":wave: こんにちは <@%v> さん！", ev.User)
 							postMessage(api, ev, msg)
 						} else if ev.User != selfUserId && strings.Contains(ev.Text, "reload config") {
 							postMessage(api, ev, "リロードするよ")
 							getConfig()
-						} else if ev.User != selfUserId && (strings.Contains(ev.Text, "おみくじ") ||
-							strings.Contains(ev.Text, "shuffle") ||
-							strings.Contains(ev.Text, "シャッフル") ||
-							strings.Contains(ev.Text, "しゃっふる")) {
+						} else if isShuffle(selfUserId, ev.User, ev.Text) {
 							msg := setShuffle(ev.Text)
 							postMessage(api, ev, msg)
 						} else if ev.User != selfUserId && strings.Contains(ev.Text, config.Redmine.Url) {
 							// Redmine URL
 							var text string
-							r := regexp.MustCompile(config.Redmine.Url + "([0-9]*)")
+							r := regexp.MustCompile(config.Redmine.Url + "([0-9]*)(#note-([0-9]*))?")
 							str := r.FindAllStringSubmatch(ev.Text, -1)
+							var msg string
 							if str != nil {
-								log.Printf("str len=%d\n", len(str))
+								log.Printf("str len=%d, %#v\n", len(str), str)
 								for i, v := range str {
 									log.Printf("str[%d]0=%v\n", i, v[0])
 									log.Printf("str[%d]1=%v\n", i, v[1])
+									log.Printf("str[%d]2=%v\n", i, v[2])
 									text = "redmine " + v[1]
-									break
-								}
-							}
-							m := createMessage(text, config.Redmine.Keywords, config.Redmine.Url, redmine)
-							postMessage(api, ev, m)
-
-						} else if ev.User != selfUserId && (strings.Contains(ev.Text, "<http://") || strings.Contains(ev.Text, "<https://")) &&
-							strings.Contains(ev.Text, config.HttpSummary.Intra) {
-							var url string
-							if !strings.Contains(ev.Text, config.Redmine.Url) {
-								// http Summary
-								key := "<(https?://.*." + config.HttpSummary.Intra + "/?.*?)>"
-								log.Printf("key=%v\n", key)
-
-								// exludeなら抜ける
-								bf := false
-								for _, ex := range config.HttpSummary.Exclude {
-									if strings.Contains(ev.Text, ex.Site) {
-										log.Println("exclude break")
-										bf = true
-										break
-									}
-								}
-								if bf {
-									break
-								}
-
-								log.Println("not exclude")
-								r := regexp.MustCompile(key)
-								str := r.FindAllStringSubmatch(ev.Text, -1)
-								log.Printf("str=%v\n", str)
-								if str != nil {
-									log.Printf("str len=%d\n", len(str))
-									//var msg string
-									for i, v := range str {
-										log.Printf("str[%d]=%v\n", i, v[1])
-										url = v[1]
-										if url != "" {
-											imgext := []string{"png", "jpg", "bmp"}
-											for _, ext := range imgext {
-												// ToDo: 切り出して設定化
-												if strings.HasSuffix(url, ext) {
-													log.Println("img: ", ext)
-													if strings.HasPrefix(url, "https://jira.in.infocom.co.jp/redmine/attachments") {
-														url = strings.Replace(url, "attachments", "attachments/download", 1)
-														log.Println(url)
-													}
-													req, _ := http.NewRequest("GET", url, nil)
-													req.Header.Set("X-Redmine-API-Key", config.Redmine.APIToken)
-													client := new(http.Client)
-													resp, err := client.Do(req)
-													if err != nil {
-														log.Println(err, url)
-													} else {
-														defer resp.Body.Close()
-
-														_, err = api.UploadFile(
-															slack.FileUploadParameters{
-																Reader:   resp.Body,
-																Filename: "image: " + url,
-																Channels: []string{ev.Channel},
-															})
-														if err != nil {
-															log.Println(err, url)
-														}
-													}
-													url = "" // 画像の場合は空にして後でpostMessageしないように
-												}
-											}
+									if v[3] != "" {
+										log.Println(v[3])
+										no, err := strconv.Atoi(v[3])
+										if err != nil {
+											log.Println(err)
+											break
 										}
-									}
-									if url != "" {
-										postMessage(api, ev, httpSummary(url))
+										m, err := redmineNote(config.Redmine.Url+v[1], no-1)
+										if err != nil {
+											log.Println(err)
+											break
+										}
+										msg += m
+									} else {
+										msg += createMessage(text, config.Redmine.Keywords, config.Redmine.Url, redmine)
 									}
 								}
 							}
+							postMessage(api, ev, msg)
+						} else if ev.User != selfUserId && isWebPage(ev.Text) && isIntraWebPage(ev.Text) {
+							var url string
+							//if !strings.Contains(ev.Text, config.Redmine.Url) {
+							// exludeなら抜ける
+							bf := false
+							for _, ex := range config.HttpSummary.Exclude {
+								if strings.Contains(ev.Text, string(ex.Site)) {
+									log.Printf("exclude break: %s, %s\n", ev.Text, string(ex.Site))
+									bf = true
+									break
+								}
+							}
+							if bf {
+								break
+							}
+
+							log.Println("not exclude")
+							// http Summary
+							key := "<(https?://.*." + config.HttpSummary.Intra + "/?.*?)>"
+							log.Printf("key=%v\n", key)
+							r := regexp.MustCompile(key)
+							str := r.FindAllStringSubmatch(ev.Text, -1)
+							log.Printf("str=%v\n", str)
+							if str != nil {
+								log.Printf("str len=%d\n", len(str))
+								//var msg string
+								for i, v := range str {
+									url = v[1]
+									log.Printf("str[%d]=%v\n", i, url)
+									getImage(api, ev, &url)
+								}
+								if url != "" {
+									postMessage(api, ev, httpSummary(url))
+								}
+							}
+							//}
 						} else if ev.User != selfUserId {
 							// Redmine
 							m := createMessage(ev.Text, config.Redmine.Keywords, config.Redmine.Url, redmine)
@@ -432,4 +487,9 @@ func main() {
 	}()
 
 	socketMode.Run()
+}
+
+// setLogger Callerを出力
+func setLogger() {
+	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 }

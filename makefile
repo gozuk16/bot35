@@ -1,4 +1,6 @@
 SRC=bot35.go httpclient.go redmine.go jira.go httpSummary.go bitbucket.go bitbucket_pr.go confluence.go
+TEST=bot35_test.go
+FUZZ=bot35_fuzz_test.go
 
 build:
 	go build $(SRC)
@@ -13,4 +15,7 @@ run:
 	go run $(SRC)
 
 test:
-	go test -run ''
+	go test -v $(TEST) $(SRC)
+
+fuzz:
+	go test -v -fuzz . -fuzztime 30s $(FUZZ) $(SRC)

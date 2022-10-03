@@ -2,7 +2,8 @@
 	"botId": "XXXXXXXXX",
 	"SlackAPIToken": "xxxx-xxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxx",
 	"redmine": {
-		"url": "http://www.example.com/redmine/issues/",
+		"url": "https://www.example.com/redmine/issues/",
+		"endpointParam": ".json?include=journals",
 		"apiToken": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
 		"keywords": [
 			{"key": "redmine ([0-9].*)"},
@@ -10,7 +11,11 @@
 		]
 	},
 	"httpSummary": {
-		"intra": "example.com"
+		"intra": "example.com",
+		"exclude": [
+			{"Site": "https://redmine.example.com/"},
+			{"Site": "https://example.com/jenkins/"}
+		]
 	},
 	"jira": {
 		"endpoint": "https://user:password@jira.example.com/rest/api/2/issue/",
